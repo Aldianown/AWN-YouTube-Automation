@@ -10,6 +10,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 import edge_tts
 import imageio_ffmpeg
+import time
 
 # Setup FFmpeg
 ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
@@ -18,7 +19,102 @@ os.environ["PATH"] += os.pathsep + os.path.dirname(ffmpeg_path)
 W, H = 1080, 1920
 FPS = 30
 
-# ---------- Fonts ----------
+# ==========================================
+# 1. CUSTOM CSS UNTUK TAMPILAN MODERN
+# ==========================================
+st.set_page_config(page_title="LATE Gaming Studio", page_icon="🎮", layout="wide")
+
+custom_css = """
+<style>
+    /* Background Utama */
+    .stApp {
+        background: linear-gradient(135deg, #0b0c10 0%, #1f2833 100%);
+        color: #c5c6c7;
+        font-family: 'Inter', sans-serif;
+    }
+    
+    /* Judul Utama */
+    .title-text {
+        font-size: 3rem;
+        font-weight: 800;
+        background: -webkit-linear-gradient(45deg, #66fcf1, #45a29e);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0px;
+        text-align: center;
+    }
+    .subtitle-text {
+        text-align: center;
+        color: #45a29e;
+        font-size: 1.1rem;
+        margin-bottom: 2rem;
+    }
+    
+    /* Kotak Form (Card) */
+    div[data-testid="stForm"] {
+        background-color: rgba(31, 40, 51, 0.6);
+        border: 1px solid rgba(102, 252, 241, 0.2);
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        backdrop-filter: blur(10px);
+    }
+    
+    /* Input Field */
+    .stTextInput > div > div > input, .stTextArea > div > div > textarea {
+        background-color: #0b0c10 !important;
+        color: #66fcf1 !important;
+        border: 1px solid #45a29e !important;
+        border-radius: 8px !important;
+    }
+    
+    /* Tombol Submit */
+    .stButton > button {
+        width: 100%;
+        background: linear-gradient(90deg, #45a29e 0%, #66fcf1 100%);
+        color: #0b0c10 !important;
+        font-weight: bold;
+        font-size: 1.2rem;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+    .stButton > button:hover {
+        transform: scale(1.02);
+        box-shadow: 0 0 15px rgba(102, 252, 241, 0.5);
+    }
+    
+    /* Video Player & Download Button */
+    .stVideo {
+        border-radius: 15px;
+        overflow: hidden;
+        border: 2px solid #45a29e;
+    }
+    .stDownloadButton > button {
+        background-color: transparent;
+        color: #66fcf1 !important;
+        border: 2px solid #66fcf1;
+        border-radius: 8px;
+        font-weight: bold;
+    }
+    .stDownloadButton > button:hover {
+        background-color: rgba(102, 252, 241, 0.1);
+    }
+    
+    /* Metadata Box */
+    .stCode {
+        background-color: #0b0c10;
+        border: 1px solid #45a29e;
+        border-radius: 8px;
+    }
+</style>
+"""
+st.markdown(custom_css, unsafe_allow_html=True)
+
+# ==========================================
+# 2. FUNGSI-FUNGSI PEMBUAT VIDEO
+# ==========================================
 def font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
     candidates = [
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
@@ -29,7 +125,6 @@ def font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
             return ImageFont.truetype(p, size)
     return ImageFont.load_default()
 
-# ---------- Text Helpers ----------
 def wrap_text(draw, text, fnt, max_width):
     words, lines, line = text.split(), [], ""
     for word in words:
@@ -71,7 +166,6 @@ def split_into_chunks(text: str, max_chars: int) -> list[str]:
         if c: final.append(c)
     return final
 
-# ---------- Slide Drawing ----------
 def build_gradient(top, bottom):
     top_arr = np.array(top, dtype=np.float32)
     bottom_arr = np.array(bottom, dtype=np.float32)
@@ -122,37 +216,48 @@ def draw_slide(index, label, text, out_path, seed):
     d.text((125, H - 292), "FOLLOW FOR MORE GAMING TIPS", font=font(28, True), fill=(255, 255, 255, 255))
     img.save(out_path, quality=95)
 
-# ---------- TTS ----------
 async def make_voice(text, path):
     communicate = edge_tts.Communicate(text, voice="en-US-GuyNeural", rate="+2%")
     await communicate.save(str(path))
 
-# ---------- Streamlit App ----------
-st.set_page_config(page_title="LATE Gaming Generator", page_icon="🎮")
-st.title("🎮 LATE Gaming Shorts Generator")
-st.write("Buat video Shorts secara instan langsung dari browser.")
 
-with st.form("input_form"):
-    title = st.text_input("Judul Video (Title)", "Why Warm-Ups Matter in Competitive Gaming")
-    hook = st.text_area("Hook (Pembuka)", "Want more consistent aim? Stop jumping straight into ranked matches.")
-    body = st.text_area("Body (Isi/Tips)", "A short warm-up helps you get comfortable with your sensitivity, movement, and timing. Spend a few minutes in a practice range or a low-pressure mode before competitive games. Focus on smooth control instead of chasing a perfect score. The goal is to start focused, not exhausted.")
-    takeaway = st.text_area("Takeaway (Penutup)", "Build a small warm-up routine, then stay consistent. Follow LATE Gaming for more practical gaming tips.")
-    
-    submitted = st.form_submit_button("🚀 Generate Video")
+# ==========================================
+# 3. ANTARMUKA WEB (UI)
+# ==========================================
+st.markdown('<h1 class="title-text">LATE GAMING STUDIO</h1>', unsafe_allow_html=True)
+st.markdown('<p class="subtitle-text">Professional Shorts Generator v2.0</p>', unsafe_allow_html=True)
 
-if submitted:
-    with st.spinner("Sedang memproses video... (Mohon tunggu 30-60 detik)"):
-        # Buat folder sementara
+# Bagi layar menjadi 2 kolom (Kiri: Form, Kanan: Hasil)
+col1, col2 = st.columns([1, 1], gap="large")
+
+with col1:
+    with st.form("input_form"):
+        st.markdown("### 📝 Content Details")
+        title = st.text_input("Video Title", "Why Warm-Ups Matter in Competitive Gaming")
+        hook = st.text_area("Hook (Opening)", "Want more consistent aim? Stop jumping straight into ranked matches.", height=80)
+        body = st.text_area("Body (The Tips)", "A short warm-up helps you get comfortable with your sensitivity, movement, and timing. Spend a few minutes in a practice range or a low-pressure mode before competitive games. Focus on smooth control instead of chasing a perfect score. The goal is to start focused, not exhausted.", height=150)
+        takeaway = st.text_area("Takeaway (Closing)", "Build a small warm-up routine, then stay consistent. Follow LATE Gaming for more practical gaming tips.", height=80)
+        
+        submitted = st.form_submit_button("🚀 GENERATE VIDEO")
+
+with col2:
+    if submitted:
+        progress_text = "Memproses video... Mohon tunggu."
+        my_bar = st.progress(0, text=progress_text)
+        
+        # Simulasi UI Loading
+        time.sleep(0.5)
+        my_bar.progress(20, text="1/4 Menghasilkan Suara (TTS)...")
+        
         temp_dir = tempfile.mkdtemp()
         out_dir = Path(temp_dir)
-        
         narration = " ".join([hook, body, takeaway])
         
-        # 1. Generate TTS
         voice_path = out_dir / "voice.mp3"
         asyncio.run(make_voice(narration, voice_path))
         
-        # 2. Dapatkan durasi audio menggunakan FFprobe (Pengganti pydub)
+        my_bar.progress(40, text="2/4 Menghitung Durasi Audio...")
+        
         probe = subprocess.run(
             [ffmpeg_path.replace("ffmpeg", "ffprobe"), "-v", "error", "-show_entries", "format=duration",
              "-of", "default=noprint_wrappers=1:nokey=1", str(voice_path)],
@@ -161,9 +266,10 @@ if submitted:
         try:
             duration = max(12.0, float(probe.stdout.strip()) + 0.5)
         except ValueError:
-            duration = 15.0 # Fallback jika gagal baca durasi
+            duration = 15.0
+            
+        my_bar.progress(60, text="3/4 Menggambar Slide Grafis...")
         
-        # 3. Buat Slide
         slide_specs = [("THE HOOK", hook)]
         body_chunks = split_into_chunks(body, 180)[:3]
         for i, chunk in enumerate(body_chunks):
@@ -177,7 +283,8 @@ if submitted:
             draw_slide(i, label, text, p, seed)
             slide_paths.append(p)
             
-        # 4. Gabungkan Slide & Audio (Render Video)
+        my_bar.progress(80, text="4/4 Merender Video Final (FFmpeg)...")
+        
         per_slide = duration / len(slide_paths)
         concat_file = out_dir / "slides.txt"
         with open(concat_file, "w") as f:
@@ -188,7 +295,6 @@ if submitted:
             
         video_path = out_dir / "output.mp4"
         
-        # Jalankan FFmpeg
         cmd = [
             ffmpeg_path, "-y",
             "-f", "concat", "-safe", "0", "-i", str(concat_file),
@@ -200,21 +306,26 @@ if submitted:
         ]
         subprocess.run(cmd, check=True, capture_output=True)
         
-        st.success("✅ Video Berhasil Dibuat!")
+        my_bar.progress(100, text="✅ Video Berhasil Dibuat!")
+        time.sleep(0.5)
+        my_bar.empty()
         
-        # 5. Tampilkan Video & Sediakan Tombol Download
+        st.success("Video siap diunduh dan diunggah ke YouTube!")
         st.video(str(video_path))
         
         with open(video_path, "rb") as f:
             video_bytes = f.read()
             
         st.download_button(
-            label="⬇️ Download Video (MP4)",
+            label="⬇️ DOWNLOAD MP4",
             data=video_bytes,
             file_name="LATE_Gaming_Short.mp4",
-            mime="video/mp4"
+            mime="video/mp4",
+            use_container_width=True
         )
         
-        # Tampilkan Metadata
-        st.subheader("Metadata untuk YouTube")
-        st.code(f"Title: {title}\n\nDescription:\n{hook}\n\n{body}\n\n{takeaway}\n\n#Gaming #Shorts #LateGaming")
+        st.markdown("### 📋 YouTube Metadata")
+        metadata_text = f"Title: {title}\n\nDescription:\n{hook}\n\n{body}\n\n{takeaway}\n\n#Gaming #Shorts #LateGaming"
+        st.code(metadata_text, language="text")
+    else:
+        st.info("👈 Isi form di sebelah kiri dan klik **Generate Video** untuk melihat hasilnya di sini.")
