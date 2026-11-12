@@ -9,20 +9,17 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 import edge_tts
-from pydub import AudioSegment
 import imageio_ffmpeg
 
-# Setup FFmpeg untuk pydub
+# Setup FFmpeg
 ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
 os.environ["PATH"] += os.pathsep + os.path.dirname(ffmpeg_path)
-AudioSegment.converter = ffmpeg_path
 
 W, H = 1080, 1920
 FPS = 30
 
 # ---------- Fonts ----------
 def font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
-    # Streamlit biasanya punya DejaVu Sans
     candidates = [
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
@@ -155,9 +152,16 @@ if submitted:
         voice_path = out_dir / "voice.mp3"
         asyncio.run(make_voice(narration, voice_path))
         
-        # 2. Dapatkan durasi audio menggunakan pydub
-        audio = AudioSegment.from_file(voice_path)
-        duration = max(12.0, (len(audio) / 1000.0) + 0.5)
+        # 2. Dapatkan durasi audio menggunakan FFprobe (Pengganti pydub)
+        probe = subprocess.run(
+            [ffmpeg_path.replace("ffmpeg", "ffprobe"), "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", str(voice_path)],
+            check=True, capture_output=True, text=True
+        )
+        try:
+            duration = max(12.0, float(probe.stdout.strip()) + 0.5)
+        except ValueError:
+            duration = 15.0 # Fallback jika gagal baca durasi
         
         # 3. Buat Slide
         slide_specs = [("THE HOOK", hook)]
