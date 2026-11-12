@@ -1,0 +1,50 @@
+name: AWN LATE Gaming Shorts
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 20:00 Japan Standard Time (JST) = 11:00 UTC
+    - cron: "0 11 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: late-gaming-shorts
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    name: Generate one original gaming Short
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install FFmpeg and fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-dejavu-core fonts-liberation
+
+      - name: Install Python packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Generate today's Short
+        run: python src/generate_short.py
+
+      - name: Upload video artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: late-gaming-short-${{ github.run_number }}
+          path: output/
+          retention-days: 7
+          if-no-files-found: error
