@@ -26,14 +26,11 @@ st.set_page_config(page_title="LATE Gaming Studio", page_icon="🎮", layout="wi
 
 custom_css = """
 <style>
-    /* Background Utama */
     .stApp {
         background: linear-gradient(135deg, #0b0c10 0%, #1f2833 100%);
         color: #c5c6c7;
         font-family: 'Inter', sans-serif;
     }
-    
-    /* Judul Utama */
     .title-text {
         font-size: 3rem;
         font-weight: 800;
@@ -49,8 +46,6 @@ custom_css = """
         font-size: 1.1rem;
         margin-bottom: 2rem;
     }
-    
-    /* Kotak Form (Card) */
     div[data-testid="stForm"] {
         background-color: rgba(31, 40, 51, 0.6);
         border: 1px solid rgba(102, 252, 241, 0.2);
@@ -59,16 +54,12 @@ custom_css = """
         box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
         backdrop-filter: blur(10px);
     }
-    
-    /* Input Field */
-    .stTextInput > div > div > input, .stTextArea > div > div > textarea {
+    .stTextInput > div > div > input, .stTextArea > div > div > textarea, .stSelectbox > div > div {
         background-color: #0b0c10 !important;
         color: #66fcf1 !important;
         border: 1px solid #45a29e !important;
         border-radius: 8px !important;
     }
-    
-    /* Tombol Submit */
     .stButton > button {
         width: 100%;
         background: linear-gradient(90deg, #45a29e 0%, #66fcf1 100%);
@@ -84,8 +75,6 @@ custom_css = """
         transform: scale(1.02);
         box-shadow: 0 0 15px rgba(102, 252, 241, 0.5);
     }
-    
-    /* Video Player & Download Button */
     .stVideo {
         border-radius: 15px;
         overflow: hidden;
@@ -100,13 +89,6 @@ custom_css = """
     }
     .stDownloadButton > button:hover {
         background-color: rgba(102, 252, 241, 0.1);
-    }
-    
-    /* Metadata Box */
-    .stCode {
-        background-color: #0b0c10;
-        border: 1px solid #45a29e;
-        border-radius: 8px;
     }
 </style>
 """
@@ -216,8 +198,9 @@ def draw_slide(index, label, text, out_path, seed):
     d.text((125, H - 292), "FOLLOW FOR MORE GAMING TIPS", font=font(28, True), fill=(255, 255, 255, 255))
     img.save(out_path, quality=95)
 
-async def make_voice(text, path):
-    communicate = edge_tts.Communicate(text, voice="en-US-GuyNeural", rate="+2%")
+# Fungsi TTS sekarang menerima parameter 'voice'
+async def make_voice(text, path, voice_name):
+    communicate = edge_tts.Communicate(text, voice=voice_name, rate="+2%")
     await communicate.save(str(path))
 
 
@@ -227,7 +210,6 @@ async def make_voice(text, path):
 st.markdown('<h1 class="title-text">LATE GAMING STUDIO</h1>', unsafe_allow_html=True)
 st.markdown('<p class="subtitle-text">Professional Shorts Generator v2.0</p>', unsafe_allow_html=True)
 
-# Bagi layar menjadi 2 kolom (Kiri: Form, Kanan: Hasil)
 col1, col2 = st.columns([1, 1], gap="large")
 
 with col1:
@@ -238,6 +220,19 @@ with col1:
         body = st.text_area("Body (The Tips)", "A short warm-up helps you get comfortable with your sensitivity, movement, and timing. Spend a few minutes in a practice range or a low-pressure mode before competitive games. Focus on smooth control instead of chasing a perfect score. The goal is to start focused, not exhausted.", height=150)
         takeaway = st.text_area("Takeaway (Closing)", "Build a small warm-up routine, then stay consistent. Follow LATE Gaming for more practical gaming tips.", height=80)
         
+        st.markdown("### 🗣️ Voice Settings")
+        # PILIHAN BAHASA
+        voice_options = {
+            "English (US) - Male": "en-US-GuyNeural",
+            "English (US) - Female": "en-US-AriaNeural",
+            "English (UK) - Male": "en-GB-RyanNeural",
+            "Indonesian - Male": "id-ID-ArdiNeural",
+            "Indonesian - Female": "id-ID-GadisNeural",
+            "Japanese - Female": "ja-JP-NanamiNeural",
+            "Spanish - Male": "es-ES-AlvaroNeural"
+        }
+        selected_voice = st.selectbox("Pilih Bahasa & Suara", list(voice_options.keys()))
+        
         submitted = st.form_submit_button("🚀 GENERATE VIDEO")
 
 with col2:
@@ -245,7 +240,6 @@ with col2:
         progress_text = "Memproses video... Mohon tunggu."
         my_bar = st.progress(0, text=progress_text)
         
-        # Simulasi UI Loading
         time.sleep(0.5)
         my_bar.progress(20, text="1/4 Menghasilkan Suara (TTS)...")
         
@@ -254,7 +248,9 @@ with col2:
         narration = " ".join([hook, body, takeaway])
         
         voice_path = out_dir / "voice.mp3"
-        asyncio.run(make_voice(narration, voice_path))
+        # Menggunakan voice yang dipilih
+        voice_id = voice_options[selected_voice]
+        asyncio.run(make_voice(narration, voice_path, voice_id))
         
         my_bar.progress(40, text="2/4 Menghitung Durasi Audio...")
         
