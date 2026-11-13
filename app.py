@@ -11,6 +11,10 @@ from PIL import Image, ImageDraw, ImageFont
 import edge_tts
 import imageio_ffmpeg
 import time
+import requests
+
+# --- MASUKKAN API KEY PIXABAY ANDA DI SINI ---
+PIXABAY_API_KEY =58594195-76ef65a10e5f7ecfc3cb6e06a
 
 # Setup FFmpeg
 ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
@@ -26,70 +30,16 @@ st.set_page_config(page_title="LATE Gaming Studio", page_icon="🎮", layout="wi
 
 custom_css = """
 <style>
-    .stApp {
-        background: linear-gradient(135deg, #0b0c10 0%, #1f2833 100%);
-        color: #c5c6c7;
-        font-family: 'Inter', sans-serif;
-    }
-    .title-text {
-        font-size: 3rem;
-        font-weight: 800;
-        background: -webkit-linear-gradient(45deg, #66fcf1, #45a29e);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 0px;
-        text-align: center;
-    }
-    .subtitle-text {
-        text-align: center;
-        color: #45a29e;
-        font-size: 1.1rem;
-        margin-bottom: 2rem;
-    }
-    div[data-testid="stForm"] {
-        background-color: rgba(31, 40, 51, 0.6);
-        border: 1px solid rgba(102, 252, 241, 0.2);
-        border-radius: 15px;
-        padding: 2rem;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-        backdrop-filter: blur(10px);
-    }
-    .stTextInput > div > div > input, .stTextArea > div > div > textarea, .stSelectbox > div > div {
-        background-color: #0b0c10 !important;
-        color: #66fcf1 !important;
-        border: 1px solid #45a29e !important;
-        border-radius: 8px !important;
-    }
-    .stButton > button {
-        width: 100%;
-        background: linear-gradient(90deg, #45a29e 0%, #66fcf1 100%);
-        color: #0b0c10 !important;
-        font-weight: bold;
-        font-size: 1.2rem;
-        padding: 10px 20px;
-        border: none;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-    }
-    .stButton > button:hover {
-        transform: scale(1.02);
-        box-shadow: 0 0 15px rgba(102, 252, 241, 0.5);
-    }
-    .stVideo {
-        border-radius: 15px;
-        overflow: hidden;
-        border: 2px solid #45a29e;
-    }
-    .stDownloadButton > button {
-        background-color: transparent;
-        color: #66fcf1 !important;
-        border: 2px solid #66fcf1;
-        border-radius: 8px;
-        font-weight: bold;
-    }
-    .stDownloadButton > button:hover {
-        background-color: rgba(102, 252, 241, 0.1);
-    }
+    .stApp { background: linear-gradient(135deg, #0b0c10 0%, #1f2833 100%); color: #c5c6c7; font-family: 'Inter', sans-serif; }
+    .title-text { font-size: 3rem; font-weight: 800; background: -webkit-linear-gradient(45deg, #66fcf1, #45a29e); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0px; text-align: center; }
+    .subtitle-text { text-align: center; color: #45a29e; font-size: 1.1rem; margin-bottom: 2rem; }
+    div[data-testid="stForm"] { background-color: rgba(31, 40, 51, 0.6); border: 1px solid rgba(102, 252, 241, 0.2); border-radius: 15px; padding: 2rem; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); backdrop-filter: blur(10px); }
+    .stTextInput > div > div > input, .stTextArea > div > div > textarea, .stSelectbox > div > div { background-color: #0b0c10 !important; color: #66fcf1 !important; border: 1px solid #45a29e !important; border-radius: 8px !important; }
+    .stButton > button { width: 100%; background: linear-gradient(90deg, #45a29e 0%, #66fcf1 100%); color: #0b0c10 !important; font-weight: bold; font-size: 1.2rem; padding: 10px 20px; border: none; border-radius: 8px; transition: all 0.3s ease; }
+    .stButton > button:hover { transform: scale(1.02); box-shadow: 0 0 15px rgba(102, 252, 241, 0.5); }
+    .stVideo { border-radius: 15px; overflow: hidden; border: 2px solid #45a29e; }
+    .stDownloadButton > button { background-color: transparent; color: #66fcf1 !important; border: 2px solid #66fcf1; border-radius: 8px; font-weight: bold; }
+    .stDownloadButton > button:hover { background-color: rgba(102, 252, 241, 0.1); }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
@@ -148,33 +98,21 @@ def split_into_chunks(text: str, max_chars: int) -> list[str]:
         if c: final.append(c)
     return final
 
-def build_gradient(top, bottom):
-    top_arr = np.array(top, dtype=np.float32)
-    bottom_arr = np.array(bottom, dtype=np.float32)
-    grad = np.linspace(0.0, 1.0, H, dtype=np.float32)[:, None, None]
-    arr = top_arr * (1 - grad) + bottom_arr * grad
-    arr = np.repeat(arr, W, axis=1).astype(np.uint8)
-    return Image.fromarray(arr, "RGB")
+def draw_slide_with_bg(index, label, text, out_path, bg_path=None):
+    if bg_path and Path(bg_path).exists():
+        img = Image.open(bg_path).convert("RGB").resize((W, H))
+        overlay = Image.new("RGBA", (W, H), (0, 0, 0, 150)) # Overlay gelap agar teks terbaca
+        img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
+    else:
+        top_arr = np.array((10, 12, 35), dtype=np.float32)
+        bottom_arr = np.array((35, 18, 75), dtype=np.float32)
+        grad = np.linspace(0.0, 1.0, H, dtype=np.float32)[:, None, None]
+        arr = top_arr * (1 - grad) + bottom_arr * grad
+        arr = np.repeat(arr, W, axis=1).astype(np.uint8)
+        img = Image.fromarray(arr, "RGB")
 
-def draw_slide(index, label, text, out_path, seed):
-    rng = random.Random(seed + index)
-    palettes = [
-        ((10, 12, 35), (35, 18, 75), (0, 220, 255)),
-        ((8, 22, 38), (28, 15, 65), (255, 70, 180)),
-        ((15, 12, 32), (12, 55, 72), (120, 255, 190)),
-        ((25, 10, 40), (8, 20, 55), (255, 190, 70)),
-    ]
-    top, bottom, accent = palettes[index % len(palettes)]
-    img = build_gradient(top, bottom)
     d = ImageDraw.Draw(img, "RGBA")
-
-    for _ in range(18):
-        x, y = rng.randint(-200, W + 200), rng.randint(-100, H + 100)
-        r = rng.randint(40, 260)
-        d.ellipse((x - r, y - r, x + r, y + r), outline=(*accent, rng.randint(12, 42)), width=rng.randint(2, 8))
-    for _ in range(22):
-        y = rng.randint(0, H)
-        d.line((0, y, W, y - rng.randint(-80, 80)), fill=(*accent, 18), width=2)
+    accent = (0, 220, 255)
 
     d.rounded_rectangle((62, 120, W - 62, H - 120), radius=42, outline=(*accent, 150), width=4)
     d.text((95, 185), "LATE GAMING", font=font(48, True), fill=(245, 248, 255, 255))
@@ -191,24 +129,45 @@ def draw_slide(index, label, text, out_path, seed):
     y = 610
     line_h = int(body_size * 1.42)
     for line in lines[:10]:
-        d.text((95, y), line, font=fnt, fill=(255, 255, 255, 255), stroke_width=1, stroke_fill=(0, 0, 0, 90))
+        d.text((95, y), line, font=fnt, fill=(255, 255, 255, 255), stroke_width=2, stroke_fill=(0, 0, 0, 200))
         y += line_h
 
     d.rounded_rectangle((95, H - 310, W - 95, H - 220), radius=24, fill=(*accent, 38), outline=(*accent, 180), width=2)
     d.text((125, H - 292), "FOLLOW FOR MORE GAMING TIPS", font=font(28, True), fill=(255, 255, 255, 255))
     img.save(out_path, quality=95)
 
-# Fungsi TTS sekarang menerima parameter 'voice'
 async def make_voice(text, path, voice_name):
     communicate = edge_tts.Communicate(text, voice=voice_name, rate="+2%")
     await communicate.save(str(path))
 
+def fetch_pixabay_video(keyword):
+    """Mencari video vertikal di Pixabay berdasarkan kata kunci."""
+    if not PIXABAY_API_KEY or PIXABAY_API_KEY == "MASUKKAN_API_KEY_PIXABAY_DISINI":
+        return None
+        
+    url = f"https://pixabay.com/api/videos/?key={PIXABAY_API_KEY}&q={keyword}&video_type=film&orientation=vertical&per_page=5"
+    try:
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('hits'):
+                video = data['hits'][0]
+                if 'videos' in video:
+                    if 'large' in video['videos'] and video['videos']['large']['url']:
+                        return video['videos']['large']['url']
+                    elif 'medium' in video['videos'] and video['videos']['medium']['url']:
+                        return video['videos']['medium']['url']
+                    elif 'small' in video['videos'] and video['videos']['small']['url']:
+                        return video['videos']['small']['url']
+    except Exception as e:
+        print(f"Error fetching from Pixabay: {e}")
+    return None
 
 # ==========================================
 # 3. ANTARMUKA WEB (UI)
 # ==========================================
 st.markdown('<h1 class="title-text">LATE GAMING STUDIO</h1>', unsafe_allow_html=True)
-st.markdown('<p class="subtitle-text">Professional Shorts Generator v2.0</p>', unsafe_allow_html=True)
+st.markdown('<p class="subtitle-text">Professional Shorts Generator v3.0 (AI Background)</p>', unsafe_allow_html=True)
 
 col1, col2 = st.columns([1, 1], gap="large")
 
@@ -220,8 +179,9 @@ with col1:
         body = st.text_area("Body (The Tips)", "A short warm-up helps you get comfortable with your sensitivity, movement, and timing. Spend a few minutes in a practice range or a low-pressure mode before competitive games. Focus on smooth control instead of chasing a perfect score. The goal is to start focused, not exhausted.", height=150)
         takeaway = st.text_area("Takeaway (Closing)", "Build a small warm-up routine, then stay consistent. Follow LATE Gaming for more practical gaming tips.", height=80)
         
-        st.markdown("### 🗣️ Voice Settings")
-        # PILIHAN BAHASA
+        st.markdown("### 🎬 Visual & Voice Settings")
+        bg_keyword = st.text_input("Cari Background Video (Keywords)", "neon cyberpunk gaming", help="Ketik kata kunci bahasa Inggris (contoh: gamer setup, neon lights, abstract)")
+        
         voice_options = {
             "English (US) - Male": "en-US-GuyNeural",
             "English (US) - Female": "en-US-AriaNeural",
@@ -240,32 +200,36 @@ with col2:
         progress_text = "Memproses video... Mohon tunggu."
         my_bar = st.progress(0, text=progress_text)
         
-        time.sleep(0.5)
-        my_bar.progress(20, text="1/4 Menghasilkan Suara (TTS)...")
-        
         temp_dir = tempfile.mkdtemp()
         out_dir = Path(temp_dir)
-        narration = " ".join([hook, body, takeaway])
         
+        # 1. DOWNLOAD BACKGROUND VIDEO
+        bg_video_path = None
+        if bg_keyword.strip():
+            my_bar.progress(10, text="1/5 Mencari & Mengunduh Video Background...")
+            video_url = fetch_pixabay_video(bg_keyword)
+            if video_url:
+                bg_video_path = out_dir / "background.mp4"
+                try:
+                    with open(bg_video_path, 'wb') as f:
+                        f.write(requests.get(video_url, timeout=15).content)
+                except Exception:
+                    bg_video_path = None
+                    st.warning("Gagal mengunduh video background. Menggunakan background default.")
+            else:
+                st.warning("Background tidak ditemukan atau API Key belum diisi. Menggunakan background default.")
+        
+        # 2. GENERATE TTS
+        my_bar.progress(30, text="2/5 Menghasilkan Suara (TTS)...")
+        narration = " ".join([hook, body, takeaway])
         voice_path = out_dir / "voice.mp3"
-        # Menggunakan voice yang dipilih
         voice_id = voice_options[selected_voice]
         asyncio.run(make_voice(narration, voice_path, voice_id))
         
-        my_bar.progress(40, text="2/4 Menghitung Durasi Audio...")
+        duration = max(12.0, (len(narration) / 14.0) + 0.5)
         
-        probe = subprocess.run(
-            [ffmpeg_path.replace("ffmpeg", "ffprobe"), "-v", "error", "-show_entries", "format=duration",
-             "-of", "default=noprint_wrappers=1:nokey=1", str(voice_path)],
-            check=True, capture_output=True, text=True
-        )
-        try:
-            duration = max(12.0, float(probe.stdout.strip()) + 0.5)
-        except ValueError:
-            duration = 15.0
-            
-        my_bar.progress(60, text="3/4 Menggambar Slide Grafis...")
-        
+        # 3. BUAT SLIDE TEKS
+        my_bar.progress(50, text="3/5 Menggambar Overlay Teks...")
         slide_specs = [("THE HOOK", hook)]
         body_chunks = split_into_chunks(body, 180)[:3]
         for i, chunk in enumerate(body_chunks):
@@ -273,13 +237,19 @@ with col2:
         slide_specs.append(("REMEMBER THIS", takeaway))
         
         slide_paths = []
-        seed = random.randint(1, 10000)
+        
+        bg_frame_path = None
+        if bg_video_path:
+            bg_frame_path = out_dir / "bg_frame.jpg"
+            subprocess.run([ffmpeg_path, "-y", "-i", str(bg_video_path), "-ss", "00:00:01", "-vframes", "1", str(bg_frame_path)], capture_output=True)
+
         for i, (label, text) in enumerate(slide_specs):
             p = out_dir / f"slide_{i+1}.png"
-            draw_slide(i, label, text, p, seed)
+            draw_slide_with_bg(i, label, text, p, bg_frame_path)
             slide_paths.append(p)
             
-        my_bar.progress(80, text="4/4 Merender Video Final (FFmpeg)...")
+        # 4. RENDER VIDEO FINAL
+        my_bar.progress(80, text="4/5 Merender Video (FFmpeg)...")
         
         per_slide = duration / len(slide_paths)
         concat_file = out_dir / "slides.txt"
@@ -291,15 +261,30 @@ with col2:
             
         video_path = out_dir / "output.mp4"
         
-        cmd = [
-            ffmpeg_path, "-y",
-            "-f", "concat", "-safe", "0", "-i", str(concat_file),
-            "-i", str(voice_path),
-            "-vf", f"scale={W}:{H},format=yuv420p",
-            "-r", str(FPS), "-c:v", "libx264", "-preset", "ultrafast", "-crf", "25",
-            "-c:a", "aac", "-b:a", "128k", "-shortest", "-movflags", "+faststart",
-            str(video_path)
-        ]
+        if bg_video_path:
+            cmd = [
+                ffmpeg_path, "-y",
+                "-stream_loop", "-1", "-i", str(bg_video_path),
+                "-f", "concat", "-safe", "0", "-i", str(concat_file),
+                "-i", str(voice_path),
+                "-filter_complex", 
+                f"[0:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H}[bg];[bg][1:v]overlay=shortest=1,format=yuv420p[v]",
+                "-map", "[v]", "-map", "2:a",
+                "-r", str(FPS), "-c:v", "libx264", "-preset", "ultrafast", "-crf", "25",
+                "-c:a", "aac", "-b:a", "128k", "-shortest", "-movflags", "+faststart",
+                str(video_path)
+            ]
+        else:
+            cmd = [
+                ffmpeg_path, "-y",
+                "-f", "concat", "-safe", "0", "-i", str(concat_file),
+                "-i", str(voice_path),
+                "-vf", f"scale={W}:{H},format=yuv420p",
+                "-r", str(FPS), "-c:v", "libx264", "-preset", "ultrafast", "-crf", "25",
+                "-c:a", "aac", "-b:a", "128k", "-shortest", "-movflags", "+faststart",
+                str(video_path)
+            ]
+            
         subprocess.run(cmd, check=True, capture_output=True)
         
         my_bar.progress(100, text="✅ Video Berhasil Dibuat!")
