@@ -167,7 +167,7 @@ if app_mode == "AI Director":
                 with st.spinner("AI Sutradara sedang bekerja..."):
                     try:
                         genai.configure(api_key=user_gemini_key)
-                        model = genai.GenerativeModel('gemini-2.5-flash')
+                        model = genai.GenerativeModel('gemini-3.8-flash')
                         sys_prompt = "You are an expert Hollywood Cinematographer. Expand this keyword into a highly detailed video prompt including camera, lighting, and style. Keep it under 3 sentences. ONLY the prompt."
                         response = model.generate_content(f"{sys_prompt}\nKeyword: {keyword_input}")
                         st.session_state.ai_generated_prompt = response.text.strip()
