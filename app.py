@@ -14,7 +14,7 @@ import time
 import requests
 
 # --- MASUKKAN API KEY PIXABAY ANDA DI SINI ---
-PIXABAY_API_KEY =58594195-76ef65a10e5f7ecfc3cb6e06a
+PIXABAY_API_KEY = "58594195-76ef65a10e5f7ecfc3cb6e06a"
 
 # Setup FFmpeg
 ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
