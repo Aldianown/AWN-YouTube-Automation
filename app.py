@@ -1,25 +1,46 @@
+import subprocess
+import sys
+
+# ==========================================
+# TRIK PAKSA INSTALASI LIBRARY DI STREAMLIT CLOUD
+# ==========================================
+def install_package(package):
+    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+try:
+    import yt_dlp
+except ImportError:
+    install_package("yt-dlp")
+    import yt_dlp
+
+try:
+    import google.generativeai as genai
+except ImportError:
+    install_package("google-generativeai")
+    import google.generativeai as genai
+
+try:
+    import pydub
+except ImportError:
+    install_package("pydub")
+    import pydub
+
+# ==========================================
+# IMPORT UTAMA
+# ==========================================
 import streamlit as st
 import asyncio
 import json
 import random
 import tempfile
 import os
-import subprocess
+import time
+import requests
 from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 import edge_tts
 import imageio_ffmpeg
-import time
-import requests
-import yt_dlp
-import google.generativeai as genai
-
-# ==========================================
-# MASUKKAN API KEY DEFAULT DI SINI (Bisa diubah di Sidebar)
-# ==========================================
-DEFAULT_PIXABAY_API_KEY = ""
-DEFAULT_GEMINI_API_KEY = ""
 
 # Setup FFmpeg
 ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
@@ -29,7 +50,7 @@ W, H = 1080, 1920
 FPS = 30
 
 # ==========================================
-# 1. CUSTOM CSS & PAGE CONFIG
+# KONFIGURASI HALAMAN & CSS MODERN
 # ==========================================
 st.set_page_config(page_title="AWN Studio", page_icon="🎬", layout="wide")
 
@@ -40,11 +61,9 @@ custom_css = """
     .main-title span { color: #66fcf1; }
     .mode-title { font-size: 1.5rem; font-weight: 600; color: #45a29e; margin-top: 0px; margin-bottom: 2rem; border-bottom: 1px solid #1f2833; padding-bottom: 10px;}
     
-    /* Gaya Form & Input */
     div[data-testid="stForm"], .stContainer { background-color: rgba(31, 40, 51, 0.4); border: 1px solid rgba(102, 252, 241, 0.1); border-radius: 12px; padding: 2rem; }
     .stTextInput > div > div > input, .stTextArea > div > div > textarea, .stSelectbox > div > div { background-color: #0b0c10 !important; color: #66fcf1 !important; border: 1px solid #45a29e !important; border-radius: 6px !important; }
     
-    /* Tombol */
     .stButton > button { width: 100%; background: #66fcf1; color: #0b0c10 !important; font-weight: bold; border: none; border-radius: 6px; transition: 0.3s; }
     .stButton > button:hover { background: #45a29e; color: white !important; box-shadow: 0 0 10px #66fcf1; }
     
@@ -55,7 +74,7 @@ custom_css = """
 st.markdown(custom_css, unsafe_allow_html=True)
 
 # ==========================================
-# 2. FUNGSI BANTUAN (SAMA SEPERTI SEBELUMNYA)
+# FUNGSI BANTUAN
 # ==========================================
 def font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
     candidates = [
@@ -126,31 +145,41 @@ def generate_ai_image(prompt):
     return None
 
 # ==========================================
-# 3. SIDEBAR (MENU SETING)
+# SIDEBAR (MENU SETING & API KEYS)
 # ==========================================
 with st.sidebar:
     st.markdown('<h1 class="main-title">AWN<span>-STUDIO</span></h1>', unsafe_allow_html=True)
     st.markdown("---")
     st.markdown("### ⚙️ Pengaturan")
     
-    # Mode Selection
     app_mode = st.radio(
         "Pilih Studio Mode:",
         ("AI Director", "Smart Clipper", "URL Extractor", "Classic Shorts")
     )
     
     st.markdown("---")
-    st.markdown("### 🔑 API Keys (Opsional)")
-    user_pixabay_key = st.text_input("Pixabay API Key", type="password", value=DEFAULT_PIXABAY_API_KEY)
-    user_gemini_key = st.text_input("Gemini API Key", type="password", value=DEFAULT_GEMINI_API_KEY)
+    st.markdown("### 🔑 API Keys")
+    st.caption("Masukkan API Key Anda di sini (Aman & tidak tersimpan di GitHub).")
+    
+    # Mengambil kunci dari Streamlit Secrets jika ada, atau dari input manual
+    try:
+        default_pixabay = st.secrets.get("PIXABAY_API_KEY", "")
+        default_gemini = st.secrets.get("GEMINI_API_KEY", "")
+    except:
+        default_pixabay = ""
+        default_gemini = ""
+        
+    user_pixabay_key = st.text_input("Pixabay API Key", type="password", value=default_pixabay)
+    user_gemini_key = st.text_input("Gemini API Key", type="password", value=default_gemini)
+    
     st.markdown("---")
-    st.caption("AWN Studio v6.0 | Powered by Streamlit & AI")
+    st.caption("AWN Studio v7.0 | Powered by Streamlit & AI")
 
 # ==========================================
-# 4. AREA KONTEN UTAMA (BERDASARKAN MODE)
+# AREA KONTEN UTAMA
 # ==========================================
 
-# --- MODE 1: AI DIRECTOR (Warna Aksen: Ungu/Cyan) ---
+# --- MODE 1: AI DIRECTOR ---
 if app_mode == "AI Director":
     st.markdown('<h2 class="mode-title">🎬 AI Director Studio</h2>', unsafe_allow_html=True)
     st.write("Ubah ide sederhana menjadi video sinematik dengan bantuan AI Sutradara (Gemini).")
@@ -200,7 +229,7 @@ if app_mode == "AI Director":
                 else:
                     st.error("Gagal membuat gambar AI.")
 
-# --- MODE 2: SMART CLIPPER (Warna Aksen: Hijau) ---
+# --- MODE 2: SMART CLIPPER ---
 elif app_mode == "Smart Clipper":
     st.markdown('<h2 class="mode-title">✂️ Smart Clipper Studio</h2>', unsafe_allow_html=True)
     st.write("Potong video lokal Anda menjadi format vertikal 9:16 secara instan.")
@@ -229,7 +258,7 @@ elif app_mode == "Smart Clipper":
     with col2:
         st.info("💡 **Tips Clipper:**\n\n1. Video apapun (horizontal/vertikal) akan otomatis di-zoom ke tengah agar pas di layar HP.\n2. Gunakan durasi 15-60 detik untuk hasil Shorts yang optimal.")
 
-# --- MODE 3: URL EXTRACTOR (Warna Aksen: Oranye) ---
+# --- MODE 3: URL EXTRACTOR ---
 elif app_mode == "URL Extractor":
     st.markdown('<h2 class="mode-title">🌐 URL Extractor Studio</h2>', unsafe_allow_html=True)
     st.write("Download dan potong klip dari link YouTube, TikTok, atau Instagram.")
@@ -261,7 +290,7 @@ elif app_mode == "URL Extractor":
     with col2:
         st.info("⚠️ **Peringatan:**\n\nDownload dari YouTube/TikTok kadang diblokir oleh server jika link bersifat privat atau memiliki proteksi ketat.")
 
-# --- MODE 4: CLASSIC SHORTS (Warna Aksen: Biru) ---
+# --- MODE 4: CLASSIC SHORTS ---
 elif app_mode == "Classic Shorts":
     st.markdown('<h2 class="mode-title">💡 Classic Shorts Studio</h2>', unsafe_allow_html=True)
     st.write("Buat video Shorts standar dengan teks dan latar belakang video stock (Pixabay).")
