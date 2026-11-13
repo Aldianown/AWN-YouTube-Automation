@@ -1,33 +1,3 @@
-import subprocess
-import sys
-
-# ==========================================
-# TRIK PAKSA INSTALASI LIBRARY DI STREAMLIT CLOUD
-# ==========================================
-def install_package(package):
-    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-
-try:
-    import yt_dlp
-except ImportError:
-    install_package("yt-dlp")
-    import yt_dlp
-
-try:
-    import google.generativeai as genai
-except ImportError:
-    install_package("google-generativeai")
-    import google.generativeai as genai
-
-try:
-    import pydub
-except ImportError:
-    install_package("pydub")
-    import pydub
-
-# ==========================================
-# IMPORT UTAMA
-# ==========================================
 import streamlit as st
 import asyncio
 import json
@@ -36,11 +6,14 @@ import tempfile
 import os
 import time
 import requests
+import subprocess
 from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 import edge_tts
 import imageio_ffmpeg
+import yt_dlp
+import google.generativeai as genai
 
 # Setup FFmpeg
 ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
@@ -161,7 +134,6 @@ with st.sidebar:
     st.markdown("### 🔑 API Keys")
     st.caption("Masukkan API Key Anda di sini (Aman & tidak tersimpan di GitHub).")
     
-    # Mengambil kunci dari Streamlit Secrets jika ada, atau dari input manual
     try:
         default_pixabay = st.secrets.get("PIXABAY_API_KEY", "")
         default_gemini = st.secrets.get("GEMINI_API_KEY", "")
